@@ -1,4 +1,6 @@
 fileignoreconfig:
+- filename: greed_scoring/Cargo.lock
+  checksum: 2977e399a536cae65a4eb295527af356761dcdc770f6d3e5a7c77939efc8fe0b
 - filename: greed_scoring/Cargo.toml
   checksum: 51f1dd678ddcc0900e6c391184ce46e3511fd3ac3386b59f293b960e8ed92abc
 version: "1.0"

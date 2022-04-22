@@ -1,8 +1,22 @@
 #![allow(dead_code)]
+
+use derivative::Derivative;
+use derive_builder::Builder;
 use std::collections::HashMap;
 static SET_SIZE: i32 = 3;
 struct DiceContainer {
     dice_classifier: HashMap<i32, i32>,
+}
+#[derive(Derivative, Default, Builder, Debug)]
+#[builder(setter(into), default)]
+struct Rule {
+    dices: Vec<i32>,
+    points: i32,
+    #[derivative(Default(value = "false"))]
+    is_set: bool,
+    #[derivative(Default(value = "false"))]
+    multiple_dice: bool,
+    description: String,
 }
 
 impl DiceContainer {
@@ -13,7 +27,7 @@ impl DiceContainer {
     }
 
     fn reset_new_game(&mut self) {
-        self.dice_classifier = HashMap::from([(1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0)]);
+        self.dice_classifier = Self::new().dice_classifier;
     }
 
     fn dice_classify_processor(&mut self, dices: Vec<i32>) {
@@ -22,24 +36,20 @@ impl DiceContainer {
         }
     }
 
-    fn apply_a_set_of_three_ones_is_1000_points(&self) -> i32 {
-        1000 * (self.dice_classifier.get(&1).unwrap() / SET_SIZE)
-    }
-
-    fn apply_a_set_of_three_numbers_other_than_ones_is_worth_100_times_the_number(&self) -> i32 {
+    fn apply_rule(&self, rule: Rule) -> i32 {
         let mut score = 0;
-        for num in 2..6 + 1 {
-            score += 100 * num * (self.dice_classifier.get(&num).unwrap() / SET_SIZE)
+        for dice in rule.dices {
+            score += rule.points
+                * match rule.multiple_dice {
+                    true => dice,
+                    false => 1,
+                }
+                * match rule.is_set {
+                    true => self.dice_classifier.get(&dice).unwrap() / SET_SIZE,
+                    false => self.dice_classifier.get(&dice).unwrap() % SET_SIZE,
+                };
         }
         score
-    }
-
-    fn apply_a_one_that_is_not_part_of_a_set_of_three_is_worth_100_points(&self) -> i32 {
-        100 * (self.dice_classifier.get(&1).unwrap() % SET_SIZE)
-    }
-
-    fn apply_a_file_that_is_not_part_of_a_set_of_three_is_worth_50_points(&self) -> i32 {
-        50 * (self.dice_classifier.get(&5).unwrap() % SET_SIZE)
     }
 
     pub fn get_greed_score(&mut self, dices: Vec<i32>) -> i32 {
@@ -47,10 +57,46 @@ impl DiceContainer {
         self.dice_classify_processor(dices);
         let mut score = 0;
 
-        score += self.apply_a_set_of_three_ones_is_1000_points();
-        score += self.apply_a_set_of_three_numbers_other_than_ones_is_worth_100_times_the_number();
-        score += self.apply_a_one_that_is_not_part_of_a_set_of_three_is_worth_100_points();
-        score += self.apply_a_file_that_is_not_part_of_a_set_of_three_is_worth_50_points();
+        score += self.apply_rule(
+            RuleBuilder::default()
+                .dices(vec![1])
+                .points(1000)
+                .is_set(true)
+                .description("A set of three ones is 1000 points")
+                .build()
+                .unwrap(),
+        );
+
+        score += self.apply_rule(
+            RuleBuilder::default()
+                .dices(vec![2, 3, 4, 5, 6])
+                .points(100)
+                .is_set(true)
+                .multiple_dice(true)
+                .description(
+                    "A set of three numbers (other than ones) is worth 100 times the number",
+                )
+                .build()
+                .unwrap(),
+        );
+
+        score += self.apply_rule(
+            RuleBuilder::default()
+                .dices(vec![1])
+                .points(100)
+                .description("A one (that is not part of a set of three) is worth 100 points")
+                .build()
+                .unwrap(),
+        );
+
+        score += self.apply_rule(
+            RuleBuilder::default()
+                .dices(vec![5])
+                .points(50)
+                .description("A five (that is not part of a set of three) is worth 50 points")
+                .build()
+                .unwrap(),
+        );
 
         score
     }
